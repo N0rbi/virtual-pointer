@@ -3,7 +3,9 @@ import random
 import argparse
 import os
 
-devices = [('cam_%d' % i, cv2.VideoCapture(i)) for i in range(2)]
+capture_dev_num = sum([1 for f in os.listdir("/dev") if 'video' in f])
+print(list(range(capture_dev_num)[-2::-1]))
+devices = [('cam_%d' % i, cv2.VideoCapture(i)) for i in [capture_dev_num-1, capture_dev_num-2]] # we only need the last 2 video device
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--seed", type=int, help="What seed to use for the point generation [important: seed must be the same as the seed of the projector script]", required=False, default=0)

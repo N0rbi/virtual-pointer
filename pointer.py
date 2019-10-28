@@ -14,6 +14,9 @@ args = parser.parse_args()
 random.seed(args.seed)
 
 pygame.init()
+pygame.font.init() 
+myfont = pygame.font.SysFont('Comic Sans MS', args.width // 10)
+
 screen=pygame.display.set_mode((args.width, args.height), pygame.FULLSCREEN)
 
 current_index = 0
@@ -28,6 +31,8 @@ while True:
         coordinates.append([random.randint(0, args.width), random.randint(0, args.height)])
 
     screen.fill((255,255,255))
+    index_surface = myfont.render(str(current_index), False, (150, 150, 150))
+    screen.blit(index_surface,(0,0))
 
     pygame.draw.circle(screen, (0,0,0), tuple(coordinates[current_index]), 5)
 
@@ -43,6 +48,7 @@ while True:
             elif event.key == pygame.K_2:
                 current_index += 1
             elif event.key == pygame.K_3:
+                print(coordinates)
                 pygame.quit()
                 sys.exit()
     pygame.display.update()
