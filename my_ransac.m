@@ -1,4 +1,4 @@
-function [ theta,rho ] = ransac( pts,iterNum,thDist,thInlrRatio )
+function [ theta,rho ] = my_ransac( pts,iterNum,thDist,thInlrRatio )
 %RANSAC Use RANdom SAmple Consensus to fit a line
 %	RESCOEF = RANSAC(PTS,ITERNUM,THDIST,THINLRRATIO) PTS is 2*n matrix including 
 %	n points, ITERNUM is the number of iteration, THDIST is the inlier 

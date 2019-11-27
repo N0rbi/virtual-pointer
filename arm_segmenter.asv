@@ -71,12 +71,7 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     figure;
     imshow(afteropen);
     title("break")
-%     afteropen = imfill(afteropen,'holes');
-%     se = strel('disk',5);
-%     afteropen = imclose(afteropen,se);
-%     figure;
-%     imshow(afteropen);
-%     title("fill hole")
+     
     
     width = size(afteropen, 2);
     
@@ -153,6 +148,7 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     % Coefficient of determineation; R^2 = (explained variance)/(total variance)
     D=diag(D);
     R2=D(1)/sum(D);
+    
     % Visualize X and line of best fit
     % -------------------------------------------------------------------------
     % End-points of a best-fit line (segment); used for visualization only 
@@ -166,6 +162,7 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     figure('color','w')
     axis equal 
     hold on
+    
     plot3(X_end(:,1),X_end(:,2),X_end(:,3),'-r','LineWidth',3) % best fit line 
     plot3(points_3d(:,1),points_3d(:,2),points_3d(:,3),'.k','MarkerSize',13)           % simulated noisy data
     set(get(gca,'Title'),'String',sprintf('R^2 = %.3f',R2),'FontSize',25,'FontWeight','normal')
@@ -214,5 +211,5 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
 %     line_z1 = Z(line_y1, line_x1);
 %     line_z2 = Z(line_y2, line_x2);
 %     
-     %arm_properties = [line_x1 line_y1 line_z1; line_x2 line_y2 line_z2];
+     arm_properties = [line_x1 line_y1 line_z1; line_x2 line_y2 line_z2];
 end
