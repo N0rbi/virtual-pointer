@@ -1,13 +1,17 @@
-function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
+function [arm_properties] = arm_segmenter(base_dir, stereoParams, number_of_img)
     close all;
+    number_of_img_str = int2str(number_of_img);
+    i1 = strcat(base_dir, '/', number_of_img_str, '/cam_0.png');
+    i2 = strcat(base_dir, '/', number_of_img_str, '/cam_1.png');
+    
     I1 = imread(i1);
     I2 = imread(i2);
     
     I1_bg = imread('data/out_screen_FINAL/0/cam_0.png');
     I2_bg = imread('data/out_screen_FINAL/0/cam_1.png');
     
-    figure; imshow(I1_bg);
-    figure; imshow(I2_bg);
+    % figure; imshow(I1_bg);
+    % figure; imshow(I2_bg);
     
     [I1_r, I2_r] = rectifyStereoImages(I1, I2, stereoParams, 'OutputView','full');
     
@@ -17,19 +21,25 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     th = 5;
     diff_mask = ((diff1(:,:,1) > th) & (diff1(:,:,2) > th) & (diff1(:,:,3)) > th);
     figure; imshow(diff_mask);
-    title('Diff mask');
+    diff_mask = imfill(diff_mask,'holes');
+    title('Bg and human diff mask');
+    mkdir('out_test_FINAL_arm_results', number_of_img_str);
+    saveas(gcf, strcat('out_test_FINAL_arm_results/', number_of_img_str, '/diff_mask_', number_of_img_str, '.png'));
     % RGB segmentation end----
     
     A = stereoAnaglyph(I1_r,I2_r);
     figure;imshow(A)
     title('Red-Cyan composite view of the rectified stereo pair image');
-
+    saveas(gcf, strcat('out_test_FINAL_arm_results/', number_of_img_str, '/rect_images_', number_of_img_str, '.png'));
+    
     disparityRange = [-80, 0];
     ut = 10;
     disparityMap = disparitySGM(rgb2gray(I1_r),rgb2gray(I2_r),'DisparityRange',disparityRange,'UniquenessThreshold', ut);
     
     figure;
-    imshow(disparityMap,disparityRange)
+    imshow(disparityMap,disparityRange);
+    title('Disparity map');
+    saveas(gcf, strcat('out_test_FINAL_arm_results/', number_of_img_str, '/disp_map_', number_of_img_str, '.png'));
     colormap(gca,jet) 
     colorbar
     title('Disparity Map');
@@ -56,7 +66,10 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
 %     left = imdilate(mask, strel('line', 15, 45));
 %     right = imdilate(mask, strel('line', 15, -45));
 %     mask = left | right;
+    figure;
     imshow(uint8(regiongrowing(mask, round(centroid(2)), round(centroid(1)), 0.15)) .* I1_r);
+    title('Regiongrowing')
+    saveas(gcf, strcat('out_test_FINAL_arm_results/', number_of_img_str, '/reggrow_', number_of_img_str, '.png'));
     
     mask = regiongrowing(mask, round(centroid(2)), round(centroid(1)), 0.15);
     
@@ -65,20 +78,29 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     
     figure;
     imshow(afteropen1);
-    title("opening");
+    afteropen1 = imfill(afteropen1,'holes');
+    title("Opening to reduse the noise");
+    saveas(gcf, strcat('out_test_FINAL_arm_results/', number_of_img_str, '/reggrow_', number_of_img_str, '.png'));
     afteropen = (diff_mask == 1 & 1 == afteropen1);
     %afteropen = afteropen1;
+    se = strel('disk', 5);
+    afteropenclose = imclose(afteropen, se);
     figure;
-    imshow(afteropen);
+    imshow(afteropenclose);
     title("break")
-     
+%     afteropen = imfill(afteropen,'holes');
+%     se = strel('disk',5);
+%     afteropen = imclose(afteropen,se);
+%     figure;
+%     imshow(afteropen);
+%     title("fill hole")
     
-    width = size(afteropen, 2);
+    width = size(afteropenclose, 2);
     
-     afteropen_l = afteropen(:, 1:round(width/2));
-     afteropen_r = afteropen(:, round(width/2):end);
+     afteropen_l = afteropenclose(:, 1:round(width/2));
+     afteropen_r = afteropenclose(:, round(width/2):end);
     
-     afteropen_sum_x = sum(afteropen, 1);
+     afteropen_sum_x = sum(afteropenclose, 1);
      cut_at = [0,0];
      if sum(afteropen_l, 'all') > sum(afteropen_r, 'all')
          diff_x = diff(fliplr(afteropen_sum_x));
@@ -97,6 +119,7 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     
     figure;
     imshow(x_filtered);
+    title('Cutted');
    
     [rr, cc, ~] = find(x_filtered > 0);
     
@@ -108,9 +131,11 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     
     for i = 1:n
        coordinates = pts_image(i, :);
-       points_3d(i, :) = xyzPoints(coordinates(1),coordinates(2),:);
-    end
+       if ~isnan(xyzPoints(coordinates(1),coordinates(2),:))
+           points_3d(i, :) = xyzPoints(coordinates(1),coordinates(2),:);
     
+       end
+    end
     %figure,plot(pts_image(1,:),pts_image(2,:),'.'),hold on
     
     % NEW RANSAC
@@ -130,13 +155,26 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
 % 
 %     modelInliers = polyfit(points(inlierIdx,1),points(inlierIdx,2),1);
     
+[model, CuboidParameters, inlierIndices, outlierIndices] = CuboidRANSAC( points_3d );
+
+    [size_inliers, ~] = size(inlierIndices);
+    [size_outliers, ~] = size(outlierIndices);
     
+    points_3d_ran = double.empty();
+    points_3d_out = double.empty();
+    for i = 1:size_inliers
+        points_3d_ran = [points_3d_ran; points_3d(inlierIndices(i),:)];
+    end
+    
+    for i = 1:size_outliers
+        points_3d_out = [points_3d_out; points_3d(outlierIndices(i),:)];
+    end
     
     [N, ~] = size(points_3d(:,1));
     % Find line of best fit (in least-squares sense) through X
     % -------------------------------------------------------------------------
-    X_ave=mean(points_3d,1);            % mean; line of best fit will pass through this point  
-    dX=bsxfun(@minus,points_3d,X_ave);  % residuals
+    X_ave=mean(points_3d_ran,1);            % mean; line of best fit will pass through this point  
+    dX=bsxfun(@minus,points_3d_ran,X_ave);  % residuals
     C=(dX'*dX)/(N-1);           % variance-covariance matrix of X
     [R,D]=svd(C,0);             % singular value decomposition of C; C=R*D*R'
     % NOTES:
@@ -148,7 +186,6 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     % Coefficient of determineation; R^2 = (explained variance)/(total variance)
     D=diag(D);
     R2=D(1)/sum(D);
-    
     % Visualize X and line of best fit
     % -------------------------------------------------------------------------
     % End-points of a best-fit line (segment); used for visualization only 
@@ -162,9 +199,9 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
     figure('color','w')
     axis equal 
     hold on
-    
     plot3(X_end(:,1),X_end(:,2),X_end(:,3),'-r','LineWidth',3) % best fit line 
-    plot3(points_3d(:,1),points_3d(:,2),points_3d(:,3),'.k','MarkerSize',13)           % simulated noisy data
+    plot3(points_3d_ran(:,1),points_3d_ran(:,2),points_3d_ran(:,3),'.k','MarkerSize',13); hold on;     % simulated noisy data
+    plot3(points_3d_out(:,1),points_3d_out(:,2),points_3d_out(:,3),'.b','MarkerSize',13)  
     set(get(gca,'Title'),'String',sprintf('R^2 = %.3f',R2),'FontSize',25,'FontWeight','normal')
     xlabel('X','FontSize',20,'Color','k')
     ylabel('Y','FontSize',20,'Color','k')
@@ -211,5 +248,5 @@ function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
 %     line_z1 = Z(line_y1, line_x1);
 %     line_z2 = Z(line_y2, line_x2);
 %     
-     arm_properties = [line_x1 line_y1 line_z1; line_x2 line_y2 line_z2];
+     %arm_properties = [line_x1 line_y1 line_z1; line_x2 line_y2 line_z2];
 end
