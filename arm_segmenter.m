@@ -1,11 +1,10 @@
-function [arm_properties] = arm_segmenter(i1, i2, stereoParams)
+function [armA, armB] = arm_segmenter(i1, i2, stereoParams)
     I1 = imread(i1);
     I2 = imread(i2);
     
     [I1_r,I2_r] = rectifyStereoImages(I1, I2, stereoParams, 'OutputView','full');
     A = stereoAnaglyph(I1_r,I2_r);
     imshow(A)
-    title('Red-Cyan composite view of the rectified stereo pair image');
 
     disparityRange = [-80, 0];
     ut = 10;

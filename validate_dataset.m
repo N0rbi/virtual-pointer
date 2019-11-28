@@ -3,9 +3,9 @@ resultList = [];
 targetList = [];
 
 
-[plane_properties] = plane_segmenter('data/out_screen_FINAL/0/cam_0.png', 'data/out_screen_FINAL/0/cam_0.png', 'data/patterns/pattern2.png', stereoParams);
+[plane_top_left, plane_top_right, plane_bottom_left, plane_bottom_right] = plane_segmenter('data/out_screen_FINAL/0/cam_0.png', 'data/out_screen_FINAL/0/cam_1.png', 'data/out_screen_FINAL/0/cam_0_FINAL.png', stereoParams);
 
-for i=1:30
+for i=1:2
     close all;
     label = importdata(['data/out_test_FINAL/', num2str(i-1) , '/label.txt']);
     string = label(1);
@@ -16,7 +16,7 @@ for i=1:30
     target = [dim1, dim2];
     
      try
-        [result] = calculate_intersection(['data/out_test_FINAL/', num2str(i), '/cam_0.png'], ['data/out_test_FINAL/', num2str(i), '/cam_1.png'], stereoParams, plane_properties);
+        [result] = calculate_intersection(['data/out_test_FINAL/', num2str(i), '/cam_0.png'], ['data/out_test_FINAL/', num2str(i), '/cam_1.png'], stereoParams, plane_top_left, plane_top_right, plane_bottom_left);
         resultList = [resultList; result];
         targetList = [targetList; target];
      catch ME
