@@ -1,4 +1,4 @@
-function [arm_properties] = arm_segmenter(base_dir, stereoParams, number_of_img)
+function [result] = arm_segmenter(base_dir, stereoParams, number_of_img)
 close all;
 number_of_img_str = int2str(number_of_img);
 i1 = strcat(base_dir, '/', number_of_img_str, '/cam_0.png');
@@ -92,6 +92,7 @@ if debugfig
     %for test
     %BB_coordinates = [221, 105, 496, 365];
     BB_coordinates = [270, 70, 500, 360]; %nagyobb bbvel tesztelve
+    BB_coordinates = [219, 130, 483, 281];
     tl_x = BB_coordinates(1, 1);
     tl_y = BB_coordinates(1,2);
     br_x_end = BB_coordinates(1,3);
@@ -121,7 +122,8 @@ if debugfig
     planePT = pointCloud(tttt);
     
     %selected = select(ptCloudROI, ind);
-    plane_model = pcfitplane(planePT, 0.01, 'MaxNumTrials', 100000, 'Confidence', 99.99);
+    %plane_model = pcfitplane(planePT, 0.01, 'MaxNumTrials', 100000, 'Confidence', 99.99);
+    load('plane_model.mat');
     figure; pcshow(xyz_t); hold on; plot(plane_model);
 end
 
@@ -289,7 +291,8 @@ drawnow
 
 %% Emil
 id = find(testdataforplane(:,3) == med);
-P1 = testdataforplane(id, :);
+%P1 = testdataforplane(id, :);
+load('P1.mat');
 [I,check] = plane_line_intersect(plane_model.Normal,P1, X_end(1,:), X_end(2,:));
 figure;
 pcshow(xyz_t); hold on;
@@ -299,9 +302,41 @@ plot3(v(:,1),v(:,2),v(:,3),'-g','LineWidth',3)
 plot3(X_end(:,1),X_end(:,2),X_end(:,3),'-b','LineWidth',2)
 plot3(I(1),I(2),I(3),'-b*', 'Markersize',20);
 
+xy = (stereoParams.CameraParameters1.IntrinsicMatrix' * I');
+xy = xy';
+xy(:,1) = xy(:,1)./xy(:,3);
+xy(:,2) = xy(:,2)./xy(:,3);
+xy(:,3) = xy(:,3)./xy(:,3);
+
+figure; imshow(I1); hold on;  hold on; plot(xy(1), xy(2),'-k*', 'MarkerSize',20);
+
+proj_tl_pixel = [223,133];
+proj_tr_pixel = [482, 140];
+proj_bl_pixel = [223, 279];
+
+point = xy(1:2);
+
+projWidth = 1920;
+projHeight = 1080;
+
+A_x_ratio = proj_tr_pixel(1) - proj_tl_pixel(1);
+A_y_ratio = proj_bl_pixel(2) - proj_tl_pixel(2);
+
+A_x_ratio = A_x_ratio / projWidth;
+A_y_ratio = A_y_ratio / projHeight;
+
+pointXScale = point(1) - proj_tl_pixel(1);
+pointX = pointXScale/A_x_ratio;
+
+pointYScale = point(2) - proj_tl_pixel(2);
+pointY = pointYScale/A_y_ratio;
+result = [pointX, pointY];
 %plotCamera('Location', translationVector, 'Orientation', rotationMatrix, 'Size', 100);
-
-
+%hold on; plot3(camera_position(1),camera_position(2),camera_position(3),'-y*', 'MarkerSize',100);
+%camera_position=rotationMatrix(1:3,1:3)' * translationVector';
+%camera_position= GT_pose(1:3,4); % Edit: Robi
+%GT_pose = [rotationMatrix, translationVector'; 0 0 0 1];
+%PointProjectionToPlane(200, 300, stereoParams.CameraParameters1.IntrinsicMatrix', GT_pose, plane_model.Normal, plane_model.Parameters(4));
 %figure;
 %imshow(I1); hold on;
 %plot(I(1), -I(2),'-r*', 'Markersize',20)
